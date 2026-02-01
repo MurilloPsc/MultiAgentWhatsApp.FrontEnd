@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Empresas - SuperAdmin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<div class="container mt-4">
+    <h2>Empresas Cadastradas</h2>
+    <a href="/superadmin/nova_empresa.html" class="btn btn-primary mb-3">+ Nova Empresa</a>
+    <a href="/superadmin/planos.html" class="btn btn-primary  mb-3">+ Planos</a> 
+    <a href="/superadmin/criar_supervisor.html" class="btn btn-primary  mb-3">+ Suprvisor</a>
+    <a href="/superadmin/criar_agente.html" class="btn btn-primary  mb-3">+ Agente</a> 
+    <a href="/superadmin/index.html" class="btn btn-secondary mb-3">← Voltar</a>
+    <a href="/superadmin/supervisores.html?empresa_id=1" class="btn btn-primary mb-3"> Supervisores</a>
+    <a href="/superadmin/agentes.html?empresa_id=1" class="btn btn-primary mb-3"> Agentes</a>
+
+    <table class="table table-bordered table-striped">
+    <thead class="table-dark">
+        <tr>
+            <th>ID</th>
+            <th>Nome</th>
+            <th>CNPJ</th>
+            <th>Email</th>
+            <th>Telefone</th>
+            <th>Plano</th>
+            <th>Status</th>
+            <th width="320">Ações</th>
+        </tr>
+    </thead>
+    <tbody id="listaEmpresas"></tbody>
+</table>
+
+</div>
+
+
+<script>
+const API = "https://api.all-multiagente.com.br";
+
+async function carregarEmpresas() {
+    try {
+        const resp = await fetch(`${API}/empresas/listar`, {
+            method: "GET",
+            headers: {
+                "Accept": "application/json",
+                // "Authorization": "Bearer xxxxx" // descomente se precisar de token
+            }
+        });
+
+        if (!resp.ok) {
+            const text = await resp.text();
+            console.error("Resposta não OK", resp.status, text);
+            alert(`Erro ao carregar empresas (status ${resp.status})`);
+            return;
+        }
+
+        const data = await resp.json();
+        const empresas = data.empresas || [];
+
+
+        const tabela = document.getElementById("listaEmpresas");
+        tabela.innerHTML = "";
+
+        if (!Array.isArray(empresas)) {
+            console.warn("Empresas recebidas:", empresas);
+            tabela.innerHTML = `<tr><td colspan="8">Nenhuma empresa encontrada</td></tr>`;
+            return;
+        }
+
+        empresas.forEach(e => {
+    tabela.innerHTML += `
+        <tr>
+            <td>${e.id}</td>
+            <td>${e.nome}</td>
+            <td>${e.cnpj}</td>
+            <td>${e.email}</td>
+            <td>${e.telefone}</td>
+            <td>${e.plano}</td>
+            <td>${e.status}</td>
+            <td>
+                <a href="/superadmin/supervisores.html?empresa_id=${e.id}"
+                   class="btn btn-sm btn-info mb-1">
+                   Supervisores
+                </a>
+
+                <a href="/superadmin/agentes.html?empresa_id=${e.id}"
+                   class="btn btn-sm btn-primary mb-1">
+                   Agentes
+                </a>
+
+                <a href="/superadmin/editar_empresa.html?id=${e.id}"
+                   class="btn btn-sm btn-warning mb-1">
+                   Editar
+                </a>
+
+                <button class="btn btn-sm btn-danger mb-1"
+                        onclick="excluirEmpresa(${e.id})">
+                   Excluir
+                </button>
+            </td>
+        </tr>
+    `;
+});
+
+
+    } catch (err) {
+        console.error("Erro ao carregar empresas (exception):", err);
+        alert("Erro ao carregar empresas — ver console para detalhes.");
+    }
+}
+
+async function excluirEmpresa(id) {
+    if (!confirm("Deseja realmente excluir esta empresa?")) return;
+    try {
+        const resp = await fetch(`${API}/empresas/delete/${id}`, {
+            method: "DELETE",
+            headers: {
+                "Accept": "application/json",
+                // "Authorization": "Bearer xxxxx"
+            }
+        });
+        if (!resp.ok) {
+            const txt = await resp.text();
+            console.error("Erro ao excluir:", resp.status, txt);
+            alert(`Erro ao excluir (status ${resp.status})`);
+            return;
+        }
+        const r = await resp.json();
+        alert(r.message || "Empresa excluída");
+        carregarEmpresas();
+    } catch (err) {
+        console.error("Exception excluirEmpresa:", err);
+        alert("Erro ao excluir empresa — ver console.");
+    }
+}
+
+carregarEmpresas();
+</script>
+
+
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Editar Agente - SuperAdmin</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-light">
+
+<div class="container mt-4">
+
+<h3>Editar Agente</h3>
+
+<a href="/superadmin/empresas.html" class="btn btn-secondary mb-3">
+← Voltar
+</a>
+
+<form id="formEditar">
+
+<div class="mb-3">
+<label class="form-label">Nome</label>
+<input type="text" id="nome" class="form-control" required>
+</div>
+
+<div class="mb-3">
+<label class="form-label">Email</label>
+<input type="email" id="email" class="form-control" required>
+</div>
+
+<div class="mb-3">
+<label class="form-label">Nova senha (opcional)</label>
+<input type="password" id="senha" class="form-control">
+</div>
+
+<button class="btn btn-primary">Salvar</button>
+
+</form>
+
+</div>
+
+<script src="/js/auth.js"></script>
+<script>
+requireRole("SUPERADMIN");
+</script>
+
+<script>
+const API = "https://api.all-multiagente.com.br";
+const token = localStorage.getItem("token");
+
+if (!token) window.location.href = "/login.html";
+
+const params = new URLSearchParams(window.location.search);
+const userId = params.get("id");
+
+if (!userId) {
+    alert("ID do agente não informado");
+    history.back();
+}
+
+/* ==========================
+   CARREGAR AGENTE
+========================== */
+async function carregarAgente() {
+    const res = await fetch(`${API}/usuarios/${userId}`, {
+        headers: { "Authorization": "Bearer " + token }
+    });
+
+    if (!res.ok) {
+        alert("Erro ao carregar agente");
+        return;
+    }
+
+    const data = await res.json();
+
+    document.getElementById("nome").value = data.nome || "";
+    document.getElementById("email").value = data.email || "";
+}
+
+carregarAgente();
+
+/* ==========================
+   SALVAR
+========================== */
+document.getElementById("formEditar").onsubmit = async (e) => {
+    e.preventDefault();
+
+    const payload = {
+        nome: document.getElementById("nome").value,
+        email: document.getElementById("email").value
+    };
+
+    const senha = document.getElementById("senha").value;
+    if (senha) payload.senha = senha;
+
+    const res = await fetch(`${API}/usuarios/${userId}`, {
+        method: "PUT",
+        headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+        alert("Agente atualizado com sucesso");
+        window.location.href = "/superadmin/empresas.html";
+    } else {
+        const err = await res.json();
+        alert(err.erro || "Erro ao atualizar");
+    }
+};
+</script>
+
+</body>
+</html>

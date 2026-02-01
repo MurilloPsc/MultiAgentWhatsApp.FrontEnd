@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Login</title>
+  <style>
+    body { font-family: Arial; background:#f5f5f5; display:flex; justify-content:center; align-items:center; height:100vh; }
+    .box { background:#fff; padding:25px; border-radius:8px; width:300px; box-shadow:0 0 10px rgba(0,0,0,0.1); }
+    input, button { width:100%; padding:10px; margin-top:10px; }
+    button { background:#2563eb; color:#fff; border:none; cursor:pointer; }
+    #msg { color:red; margin-top:10px; }
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <h2>Faça Seu Login</h2>
+
+  <input id="email" type="email" placeholder="Email">
+  <input id="senha" type="password" placeholder="Senha">
+
+  <button onclick="login()">Entrar</button>
+  <div id="msg"></div>
+</div>
+
+<script>
+async function login() {
+    const email = document.getElementById("email").value.trim();
+    const senha = document.getElementById("senha").value.trim();
+    const msg = document.getElementById("msg");
+
+    msg.innerText = "";
+
+    if (!email || !senha) {
+        msg.innerText = "Informe email e senha";
+        return;
+    }
+
+    try {
+        // Limpa sessão antiga
+        localStorage.clear();
+
+        const response = await fetch("https://api.all-multiagente.com.br/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, senha })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            msg.innerText = data.error || "Erro no login";
+            return;
+        }
+
+        // 🔑 CORREÇÃO DEFINITIVA DO TOKEN
+        // Backend pode retornar `token` ou `access_token`
+        const token = data.token || data.access_token;
+
+        if (!token) {
+            msg.innerText = "Erro no login: token não retornado pela API";
+            return;
+        }
+
+        // 🔐 SALVA SESSÃO
+        localStorage.setItem("token", token);
+        localStorage.setItem("user_id", data.user.id);
+        localStorage.setItem("empresa_id", data.user.empresa_id);
+        localStorage.setItem("role", data.user.role);
+
+        // 🔁 REDIRECIONAMENTO POR PERFIL
+        switch (data.user.role) {
+            case "SUPERADMIN":
+                window.location.href = "/superadmin/index.html";
+                break;
+
+            case "SUPERVISOR":
+                window.location.href = "/supervisor/dashboard.html";
+                break;
+
+            case "AGENTE":
+                window.location.href = "/agente/atendimento.html";
+                break;
+
+            default:
+                msg.innerText = "Perfil inválido";
+        }
+
+    } catch (error) {
+        msg.innerText = "Erro de conexão com o servidor";
+        console.error(error);
+    }
+}
+</script>
+
+   
+
+</body>
+</html>

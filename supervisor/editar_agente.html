@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Editar Agente</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-light">
+
+<div class="container mt-4">
+    <h3>Editar Agente</h3>
+
+    <a href="/supervisor/listar_agentes.html" class="btn btn-secondary mb-3">← Voltar</a>
+
+    <form id="formEditar">
+        <label>Nome</label>
+        <input id="nome" class="form-control mb-2" required>
+
+        <label>Email</label>
+        <input id="email" type="email" class="form-control mb-2" required>
+
+        <label>Nova senha (opcional)</label>
+        <input id="senha" type="password" class="form-control mb-3">
+
+        <button class="btn btn-primary">Salvar Alterações</button>
+    </form>
+
+    <div id="msg" class="mt-3"></div>
+</div>
+
+<script>
+const API = "https://api.all-multiagente.com.br";
+const token = localStorage.getItem("token");
+
+if (!token) window.location.href = "/login.html";
+
+const params = new URLSearchParams(window.location.search);
+const agenteId = params.get("id");
+
+if (!agenteId) {
+    alert("Agente inválido");
+    window.location.href = "/supervisor/listar_agentes.html";
+}
+
+// =======================
+// Carregar dados do agente
+// =======================
+async function carregarAgente() {
+    const res = await fetch(`${API}/usuarios`, {
+        headers: { "Authorization": "Bearer " + token }
+    });
+
+    const usuarios = await res.json();
+    const agente = usuarios.find(u => u.id == agenteId);
+
+    if (!agente) {
+        alert("Agente não encontrado");
+        window.location.href = "/supervisor/listar_agentes.html";
+        return;
+    }
+
+    document.getElementById("nome").value = agente.nome;
+    document.getElementById("email").value = agente.email;
+}
+
+// =======================
+// Salvar edição
+// =======================
+document.getElementById("formEditar").addEventListener("submit", async e => {
+    e.preventDefault();
+
+    const dados = {
+        nome: document.getElementById("nome").value,
+        email: document.getElementById("email").value
+    };
+
+    const senha = document.getElementById("senha").value;
+    if (senha) dados.senha = senha;
+
+    const res = await fetch(`${API}/usuarios/${agenteId}`, {
+        method: "PUT",
+        headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(dados)
+    });
+
+    const msg = document.getElementById("msg");
+
+    if (res.ok) {
+        msg.className = "text-success";
+        msg.innerText = "Agente atualizado com sucesso!";
+    } else {
+        const r = await res.json();
+        msg.className = "text-danger";
+        msg.innerText = r.erro || "Erro ao atualizar agente";
+    }
+});
+
+carregarAgente();
+</script>
+
+</body>
+</html>

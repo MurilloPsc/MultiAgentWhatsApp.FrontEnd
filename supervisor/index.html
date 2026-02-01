@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard do Supervisor</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+body {
+  background: #f4f6f9;
+}
+.card {
+  box-shadow: 0 0 10px rgba(0,0,0,.08);
+}
+</style>
+</head>
+
+<body>
+
+<nav class="navbar navbar-dark bg-dark px-3">
+  <span class="navbar-brand">Painel do Supervisor</span>
+  <button class="btn btn-outline-light btn-sm" onclick="logout()">Sair</button>
+</nav>
+
+<div class="container mt-4">
+
+  <!-- 🔗 MENU DO SUPERVISOR -->
+  <div class="mb-3">
+    <a href="/supervisor/index.html" class="btn btn-primary btn-sm">
+      Dashboard
+    </a>
+
+    <a href="/supervisor/estatisticas.html" class="btn btn-outline-primary btn-sm">
+      Estatísticas
+    </a>
+
+    <a href="/supervisor/relatorios.html" class="btn btn-outline-secondary btn-sm">
+      Relatórios
+    </a>
+
+     <a href="/supervisor/andamento.html" class="btn btn-outline-secondary btn-sm">
+      Ver atendimentos
+    </a>
+
+     <!-- 👥 NOVO BOTÃO -->
+  <a href="/supervisor/listar_agentes.html" class="btn btn-outline-success btn-sm">
+    👥 Agentes
+  </a>
+</div>   
+
+  </div>
+
+
+<div class="container mt-4">
+
+  <!-- STATUS -->
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5>Em fila</h5>
+          <h2 id="qtd-fila">0</h2>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5>Em atendimento</h5>
+          <h2 id="qtd-atendimento">0</h2>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5>Finalizados</h5>
+          <h2 id="qtd-finalizados">0</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AGENTES -->
+  <div class="card">
+    <div class="card-header">
+      <strong>Agentes Logado</strong>
+    </div>
+    <div class="card-body">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Email</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="lista-agentes">
+          <!-- preenchido via JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="/js/auth.js"></script>
+<script src="/js/supervisor.js"></script>
+<script>
+requireRole("SUPERVISOR");
+</script>
+
+</body>
+</html>

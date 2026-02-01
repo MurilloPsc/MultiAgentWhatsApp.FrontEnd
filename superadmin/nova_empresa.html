@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Nova Empresa</title>
+<style>
+body { font-family: Arial; padding:20px; }
+input, select, button { display:block; margin-top:10px; padding:10px; width:300px; }
+button { background:#2563eb; color:white; border:none; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<h1>Criar Empresa</h1>
+
+<input id="nome" placeholder="Nome da empresa">
+<input id="cnpj" placeholder="CNPJ">
+<input id="telefone" placeholder="Telefone">
+<input id="email" placeholder="Email">
+<input id="whatsapp_from" placeholder="whatsapp:+5511999999999">
+
+
+<select id="plano_id">
+    <option value="1">Start</option>
+    <option value="2">Professional</option>
+    <option value="3">Enterprise</option>
+</select>
+
+<button onclick="criarEmpresa()">Salvar</button>
+
+
+<div id="msg"></div>
+<a href="/superadmin/index.html" class="btn btn-secondary mb-3">← Voltar</a>
+<script>
+const API = "https://api.all-multiagente.com.br";
+
+async function carregarPlanos() {
+    const resp = await fetch(`${API}/planos/listar`);
+    const data = await resp.json();
+
+    const select = document.getElementById("plano_id");
+    select.innerHTML = "";
+
+    data.planos.forEach(p => {
+        select.innerHTML += `<option value="${p.id}">${p.nome}</option>`;
+    });
+}
+
+
+
+function normalizarTelefone(telefone) {
+    if (!telefone) return null;
+
+    // remove tudo que não for número
+    telefone = telefone.replace(/\D/g, "");
+
+    // se já vier com código do país
+    if (telefone.startsWith("55")) {
+        return "+" + telefone;
+    }
+
+    // assume Brasil
+    return "+55" + telefone;
+}
+
+async function criarEmpresa() {
+    const telefoneOriginal = document.getElementById("telefone").value;
+    const telefoneNormalizado = normalizarTelefone(telefoneOriginal);
+
+    if (!telefoneNormalizado || telefoneNormalizado.length < 12) {
+        alert("Telefone inválido. Use DDD + número.");
+        return;
+    }
+
+    const whatsappFrom = document.getElementById("whatsapp_from").value;
+
+if (!whatsappFrom || !whatsappFrom.startsWith("whatsapp:+")) {
+    alert("Informe o WhatsApp no formato whatsapp:+5511999999999");
+    return;
+}
+
+const dados = {
+    nome: document.getElementById("nome").value,
+    cnpj: document.getElementById("cnpj").value,
+    telefone: telefoneNormalizado,
+    email: document.getElementById("email").value,
+    plano_id: document.getElementById("plano_id").value,
+    whatsapp_from: whatsappFrom
+};
+
+
+
+    const resp = await fetch(`${API}/empresas/criar`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(dados)
+    });
+
+    const res = await resp.json();
+
+    if (!resp.ok) {
+        alert(res.error || "Erro ao criar empresa");
+        return;
+    }
+
+    alert("Empresa criada com sucesso!");
+    window.location.href = "/superadmin/empresas.html";
+}
+
+carregarPlanos();
+</script>
+
+</body>
+</html>

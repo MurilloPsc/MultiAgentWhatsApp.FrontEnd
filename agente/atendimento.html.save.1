@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Atendimento - Agente</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        .chat-conteudo {
+            font-weight: normal !important;
+        }
+
+        audio, img, video {
+            max-width: 260px;
+        }
+    </style>
+</head>
+
+<body class="bg-light">
+
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>Atendimento</h3>
+        <button class="btn btn-outline-danger btn-sm" onclick="logout()">Sair</button>
+    </div>
+
+    <div class="alert alert-info" id="status">
+        <strong>Status:</strong> Aguardando atendimento...
+    </div>
+
+    <div id="indicadorMensagens" class="alert alert-warning d-none mt-2"></div>
+
+    <div class="card">
+        <div class="card-header">Conversa Atual</div>
+
+        <div class="card-body" id="chat" style="height:300px; overflow-y:auto;">
+            <div class="text-muted">Nenhuma mensagem ainda.</div>
+        </div>
+
+        <div class="card-footer d-flex">
+            <input id="mensagem" class="form-control me-2" placeholder="Digite sua mensagem..." disabled>
+            <button class="btn btn-primary" onclick="enviarMensagem()">Enviar</button>
+        </div>
+    </div>
+
+    <button id="btnFinalizar" class="btn btn-danger mt-3 d-none">
+        Finalizar atendimento
+    </button>
+
+</div>
+
+<script src="/js/auth.js"></script>
+
+<script>
+requireRole("AGENTE");
+
+const API = "https://api.all-multiagente.com.br";
+const token = localStorage.getItem("token");
+if (!token) window.location.href = "/login.html";
+
+/* ==========================
+   ESTADO GLOBAL
+========================== */
+let atendimentoAtualId = null;
+let atendimentoAnteriorId = null;
+let numeroClienteAtual = null;
+let aguardandoAtendimento = true;
+
+let ultimaMensagemId = 0;
+let mensagensNaoLidas = 0;
+
+const chatEl = document.getElementById("chat");
+const statusEl = document.getElementById("status");
+const btnFinalizar = document.getElementById("btnFinalizar");
+const inputMensagem = document.getElementById("mensagem");
+const indicadorMensagens = document.getElementById("indicadorMensagens");
+
+/* ==========================
+   HEARTBEAT
+========================== */
+async function sendPing() {
+    try {
+        await fetch(`${API}/agente/ping`, {
+            method: "POST",
+            headers: { "Authorization": "Bearer " + token }
+        });
+    } catch {}
+}
+
+function startHeartbeat() {
+    sendPing();
+    setInterval(sendPing, 5000);
+}
+
+/* ==========================
+   ATENDIMENTO ATUAL
+========================== */
+async function carregarAtendimentoAtual() {
+    try {
+        const res = await fetch(`${API}/agente/atual`, {
+            headers: { "Authorization": "Bearer " + token }
+        });
+
+        if (res.status === 404) {
+            if (!aguardandoAtendimento) limparAtendimento();
+            aguardandoAtendimento = true;
+            return;
+        }
+
+        if (!res.ok) return;
+
+        const dados = await res.json();
+        aguardandoAtendimento = false;
+
+        if (atendimentoAnteriorId !== dados.id) {
+            atendimentoAnteriorId = dados.id;
+            atendimentoAtualId = dados.id;
+            numeroClienteAtual = dados.numero;
+            ultimaMensagemId = 0;
+            mensagensNaoLidas = 0;
+            chatEl.innerHTML = "";
+        }
+
+        statusEl.innerHTML =
+            `<strong>Status:</strong> Em atendimento com ${dados.cliente}`;
+
+        btnFinalizar.classList.remove("d-none");
+        inputMensagem.disabled = false;
+
+        carregarMensagens();
+
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function limparAtendimento() {
+    atendimentoAtualId = null;
+    atendimentoAnteriorId = null;
+    numeroClienteAtual = null;
+    ultimaMensagemId = 0;
+    mensagensNaoLidas = 0;
+
+    statusEl.innerHTML =
+        "<strong>Status:</strong> Aguardando atendimento...";
+
+    chatEl.innerHTML =
+        `<div class="text-muted">Nenhuma mensagem ainda.</div>`;
+
+    btnFinalizar.classList.add("d-none");
+    inputMensagem.disabled = true;
+    indicadorMensagens.classList.add("d-none");
+}
+
+/* ==========================
+   MENSAGENS
+========================== */
+async function carregarMensagens() {
+    if (!atendimentoAtualId) return;
+
+    const res = await fetch(
+        `${API}/agente/mensagens/${atendimentoAtualId}`,
+        { headers: { "Authorization": "Bearer " + token } }
+    );
+
+    if (!res.ok) return;
+    const mensagens = await res.json();
+
+    if (ultimaMensagemId === 0) {
+        chatEl.innerHTML = "";
+        mensagens.forEach(m => {
+            renderMensagem(m, false);
+            ultimaMensagemId = m.id;
+        });
+        chatEl.scrollTop = chatEl.scrollHeight;
+        return;
+    }
+
+    mensagens.forEach(m => {
+        if (m.id > ultimaMensagemId) {
+            mensagensNaoLidas++;
+            renderMensagem(m, true);
+            ultimaMensagemId = m.id;
+        }
+    });
+
+    if (mensagensNaoLidas > 0) {
+        chatEl.scrollTop = chatEl.scrollHeight;
+        atualizarIndicador();
+    }
+}
+
+function formatarDataBrasil(dataStr) {
+    if (!dataStr) return "";
+
+    // Espera: YYYY-MM-DD HH:MM:SS
+    const partes = dataStr.split(/[- :]/);
+
+    const data = new Date(
+        partes[0],        // ano
+        partes[1] - 1,    // mês
+        partes[2],        // dia
+        partes[3],        // hora
+        partes[4],        // minuto
+        partes[5]         // segundo
+    );
+
+    return data.toLocaleString("pt-BR");
+}
+
+
+function renderMensagem(m, destaque) {
+    const bg = destaque ? "bg-warning-subtle" : "";
+    const remetente = m.remetente === "AGENTE" ? "AGENTE" : "CLIENTE";
+    let conteudoHtml = "";
+
+    if (m.tipo === "AUDIO") {
+    conteudoHtml = `
+        <audio controls>
+            <source src="https://api.all-multiagente.com.br/media/twilio/view?url=${encodeURIComponent(m.arquivo_url)}">
+        </audio>`;
+}
+
+    else if (m.tipo === "IMAGEM") {
+    conteudoHtml = `
+        <img src="https://api.all-multiagente.com.br/media/twilio/view?url=${encodeURIComponent(m.arquivo_url)}"
+             style="border-radius:6px;">`;
+}
+
+    else if (m.tipo === "VIDEO") {
+    conteudoHtml = `
+        <video controls style="border-radius:6px;">
+            <source src="https://api.all-multiagente.com.br/media/twilio/view?url=${encodeURIComponent(m.arquivo_url)}">
+        </video>`;
+}
+
+    else if (m.arquivo_url) {
+    conteudoHtml = `
+        <a href="https://api.all-multiagente.com.br/media/twilio/view?url=${encodeURIComponent(m.arquivo_url)}"
+           target="_blank"
+           class="btn btn-outline-secondary btn-sm">
+           📄 Abrir documento
+        </a>`;
+}
+
+    else {
+        conteudoHtml = `<span>${m.conteudo || ""}</span>`;
+    }
+
+    chatEl.innerHTML += `
+        <div class="mb-2 p-2 rounded ${bg}">
+            <div><strong>${remetente}:</strong></div>
+            <div class="mt-1 chat-conteudo">${conteudoHtml}</div>
+            <div class="text-muted small mt-1">${formatarDataBrasil(m.data)}</div>
+        </div>`;
+}
+
+/* ==========================
+   ENVIAR
+========================== */
+async function enviarMensagem() {
+    const texto = inputMensagem.value.trim();
+    if (!texto || !atendimentoAtualId) return;
+
+    inputMensagem.disabled = true;
+
+    await fetch(`${API}/agente/mensagem`, {
+        method: "POST",
+        headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            atendimento_id: atendimentoAtualId,
+            mensagem: texto,
+            numero_cliente: numeroClienteAtual
+        })
+    });
+
+    inputMensagem.value = "";
+    inputMensagem.disabled = false;
+    carregarMensagens();
+}
+
+/* ==========================
+   FINALIZAR
+========================== */
+btnFinalizar.onclick = async () => {
+    if (!confirm("Finalizar atendimento?")) return;
+
+    await fetch(`${API}/agente/finalizar/${atendimentoAtualId}`, {
+        method: "PUT",
+        headers: { "Authorization": "Bearer " + token }
+    });
+
+    limparAtendimento();
+};
+
+/* ==========================
+   INIT
+========================== */
+document.addEventListener("DOMContentLoaded", () => {
+    startHeartbeat();
+    carregarAtendimentoAtual();
+    setInterval(carregarAtendimentoAtual, 3000);
+});
+</script>
+
+</body>
+</html>
